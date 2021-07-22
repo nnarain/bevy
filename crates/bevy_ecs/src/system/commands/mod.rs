@@ -4,6 +4,7 @@ use crate::{
     bundle::Bundle,
     component::Component,
     entity::{Entities, Entity},
+    schedule::{InsertSystem, IntoSystemDescriptor, StageLabel},
     world::World,
 };
 use bevy_utils::tracing::debug;
@@ -149,6 +150,42 @@ impl<'a> Commands<'a> {
     pub fn remove_resource<T: Component>(&mut self) {
         self.queue.push(RemoveResource::<T> {
             phantom: PhantomData,
+        });
+    }
+
+    /// Inserts a [`crate::system::System`] into a [`crate::schedule::Stage`]
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bevy_ecs::prelude::*;
+    ///
+    /// fn another_system() {
+    ///    // A normal system like any other
+    /// }
+    ///
+    /// fn example_system(mut commands: Commands) {
+    ///     commands.insert_system(another_system, "some stage");
+    /// }
+    ///
+    /// let mut world = World::default();
+    /// let mut schedule = Schedule::default();
+    /// schedule.add_stage("some stage", SystemStage::parallel());
+    /// schedule.add_system_to_stage("some stage", example_system);
+    /// // When we run the schedule
+    /// schedule.run_once(&mut world);
+    /// // We should now have 2 systems in "test", the initial system and the inserted system
+    /// let stage = schedule.get_stage::<SystemStage>(&"some stage").unwrap();
+    /// assert_eq!(stage.parallel_systems().len(), 2);
+    /// ```
+    pub fn insert_system<T, S, Params>(&mut self, system: T, stage_label: S)
+    where
+        T: IntoSystemDescriptor<Params>,
+        S: StageLabel,
+    {
+        self.queue.push(InsertSystem {
+            system: system.into_descriptor(),
+            stage_label,
         });
     }
 

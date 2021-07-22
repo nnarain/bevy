@@ -1,3 +1,4 @@
+mod commands;
 mod executor;
 mod executor_parallel;
 pub mod graph_utils;
@@ -9,6 +10,7 @@ mod system_container;
 mod system_descriptor;
 mod system_set;
 
+pub use commands::*;
 pub use executor::*;
 pub use executor_parallel::*;
 pub use graph_utils::GraphNode;
@@ -198,6 +200,8 @@ impl Schedule {
     }
 
     pub fn run_once(&mut self, world: &mut World) {
+        let existing_commands = world.scheduler_commands.len();
+
         for label in self.stage_order.iter() {
             #[cfg(feature = "trace")]
             let stage_span =
@@ -207,6 +211,8 @@ impl Schedule {
             let stage = self.stages.get_mut(label).unwrap();
             stage.run(world);
         }
+
+        world.scheduler_commands.apply(self, existing_commands);
     }
 
     /// Iterates over all of schedule's stages and their labels, in execution order.
